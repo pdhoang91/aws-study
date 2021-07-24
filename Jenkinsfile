@@ -3,7 +3,7 @@ pipeline {
 	stages {
 		stage('Clone') {
 			steps {
-				git 'https://github.com/pdhoang91/aws-study.git'
+				git branch: 'main', url: 'https://github.com/pdhoang91/aws-study.git'
 			}
 		}
 	}
