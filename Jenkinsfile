@@ -2,11 +2,9 @@ pipeline {
 	agent any
 	stages {
 		stage('Clone') {
-			step {
+			steps {
 				git 'https://github.com/pdhoang91/aws-study.git'
 			}
 		}
 	}
-
-
 }
