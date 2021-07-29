@@ -196,8 +196,13 @@ ADD ./code /var/www/html
 CMD ["/usr/sbin/httpd", "-D", "FOREGROUND"]
 EXPOSE 80
 2. Build image
-docker build -t httpd_sample .
+Mot vai lenh
+RUN rm –rf /var/www/*
+RUN chown –R www-data:www-data /var/www
+ADD tinhoc.conf /etc/httpd/conf.d/
+docker build -t name_of_images .
 3. Tạo và chạy container
+docker build -t name_of_images .
 docker run -d -p 80:80 httpd_sample
 
 - Check các container đang chạy: sudo docker ps -a
@@ -229,6 +234,9 @@ sudo curl -L https://github.com/docker/compose/releases/download/1.24.1/docker-c
 sudo chmod +x /usr/local/bin/docker-compose
 sudo yum install git –y
 
+Tạo và chạy container
+docker build -t name_of_images .
+docker run -d -p 80:80 httpd_sample
 
 
 
@@ -253,8 +261,6 @@ VOLUME: tạo một điểm gắn thư mục để truy cập và lưu trữ dat
 mkdir pj01
 cd pj01/
 mkdir code
-echo ‘xin chao’ >code/index.html
-echo ‘<?php phpinfo();?>’ >code/phpinfor.php
 echo "xin chao" >code/index.html
 echo "<?php phpinfo();?>" >code/phpinfor.php
 vi Dockerfile
@@ -269,8 +275,8 @@ EXPOSE 80
 vi docker-compose.yml
 version: '3'
 services:
-  web:
-    build: .
+  Web:
+    Build: .
 	command: ["/usr/bin/httpd", "-D", "FOREGROUND"]
 	volumes:
 		- ./code:var/www/html
@@ -280,7 +286,7 @@ services:
 -Build image
 docker-compose build
 -chay
-docker-compose up
+docker-compose up -d
 -stop
 Docker-compose stop
 -start
@@ -290,6 +296,222 @@ https://github.com/dockersamples/example-voting-app
 yum install git –y
 
 Bài 29: DevOps Docker 5 / Docker Volume, Networks docker nâng cao
+
+#!/bin/bash
+sudo yum update -y
+sudo yum install -y docker
+sudo service docker start
+sudo usermod -a -G docker ec2-user
+sudo curl -L https://github.com/docker/compose/releases/download/1.24.1/docker-compose-`uname -s`-`uname -m` -o /usr/local/bin/docker-compose
+sudo chmod +x /usr/local/bin/docker-compose
+sudo yum install git –y
+
+Tạo và chạy container
+docker build -t name_of_images .
+docker run -d -p 80:80 httpd_sample
+
+Các lệnh xóa đồng loạt
+docker stop $(docker ps -a -q)
+docker rm $(docker ps -a -q)
+docker rmi -f $(docker images -a -q)
+docker-compose up -d
+
+
+
+1. Volume
+# docker volume create       Tạo mạng mới
+# docker volume inspect      Xem chi tiết mạng
+# docker volume ls           Hiển thị những mạng đang có
+# docker volume rm           Xóa volume
+# docker volume prune        Xóa toàn bộ volumn
+
+Ví dụ
+docker volume create project01_code
+docker run --name project01 -p 8081:80 -v project01_code:/usr/local/apache2/htdocs -d httpd
+
+Ví dụ 2
+docker container run --name mysql -e MYSQL_ROOT_PASSWORD=pass -p 3306:3306 -d mysql:5.7
+
+docker volume create pj01_data
+docker container run --name mysql -v pj01_data:/var/lib/mysql -e MYSQL_ROOT_PASSWORD=pass -p 3306:3306 -d mysql:5.7
+
+Vào trong service mysql: tạo user. Sau đó dung usre để login:
+docker exec -it 169cd76197e3
+mysql -u root –p
+CREATE USER 'username' IDENTIFIED BY 'password';
+
+
+2. Networks
+
+Ví dụ 1
+Tạo 1 mạng lớp C
+docker network create --subnet 192.168.1.0/24 network1
+
+Tạo ra 2 container kết nối với mạng này
+docker run -itd --name=container1  --network network1 busybox
+docker run -itd --name=container2  --network network1 busybox
+
+Kiểm tra kết nối giữa 2 mạng
+docker attach container1
+
+Ví dụ 2
+# docker run --name mysql --network network1 -e MYSQL_ROOT_PASSWORD=my-secret-pw -d mysql:5.7
+# docker run --name wordpress --network network1 -e WORDPRESS_DB_PASSWORD=my-secret-pw -p 8080:80 -d wordpress
+
+
+
+
+
+
+Sampe 1 tạo DB MYSQL
+sample-project/
+             ├ docker/
+             |       └ mysql/
+             |              ├ conf.d/
+             |              |       └ my.cnf
+             |              ├ initdb.d/
+             |              |         ├ schema.sql
+             |              |         └ testdata.sql
+             |              └ Dockerfile
+			 ├ log/mysql
+			 |
+			 |
+			 |
+             └ docker-compose.yml
+			 
+			 
+mkdir pj03
+cd pj03
+mkdir -p docker/mysql/conf.d
+mkdir -p docker/mysql/initdb.d
+mkdir -p docker/mysql/conf.d
+mkdir -p log/mysql
+chmod -Rf 777 log
+
+vi docker/mysql/conf.d/my.cnf
+[mysqld]
+character-set-server=utf8mb4
+explicit-defaults-for-timestamp=1
+general-log=1
+general-log-file=/var/log/mysql/mysqld.log
+
+[client]
+default-character-set=utf8mb4
+
+
+
+vi docker/mysql/initdb.d/schema.sql
+CREATE TABLE users (
+    id INT NOT NULL AUTO_INCREMENT,
+    name VARCHAR(32) NOT NULL,
+    email VARCHAR(32) NOT NULL,
+    PRIMARY KEY (id)
+);
+
+vi docker/mysql/initdb.d/testdata.sql
+INSERT INTO users (id,name,email) VALUES (1, 'Tuc Anh Ach','achsan@tinhocthatladongian.com');
+
+
+
+vi docker/mysql/Dockerfile
+FROM mysql:5.7
+RUN touch /var/log/mysql/mysqld.log
+
+
+vi docker-compose.yml
+version: '3'
+services:
+  db:
+    build: ./docker/mysql
+    image: mysql:5.7
+    restart: always
+    environment:
+      MYSQL_DATABASE: sample_db
+      MYSQL_USER: user
+      MYSQL_PASSWORD: password
+      MYSQL_ROOT_PASSWORD: rootpassword
+    ports:
+      - "3314:3306"
+    volumes:
+      - ./docker/mysql/initdb.d:/docker-entrypoint-initdb.d
+      - ./docker/mysql/conf.d:/etc/mysql/conf.d
+      - ./log/mysql:/var/log/mysql
+      - mysql_data:/var/lib/mysql
+volumes:
+  mysql_data:
+
+	  
+- Build container
+docker-compose up -d 
+
+- Truy cập vào container để chạy lệnh
+docker exec -it sampleproject_db_1 bash
+
+$ mysql -u user -p
+
+INSERT INTO users (id,name,email) VALUES (2, 'BAo','bao@mail.co.jp');
+
+
+
+truy cập vào từ ngoài bằng Navicat
+mysql --host 127.0.0.1 --port 3314 -u user -p 
+
+
+
+
+
+Sample 2
+mkdir { my-wordpress-dir-name }
+cd { my-wordpress-dir-name } 
+
+
+docker-compose.yml
+
+version: "2"
+services:
+  wordpress:
+    image: wordpress:latest
+    container_name: pj10_wordpress
+    volumes:
+      - "$PWD:/var/www/html"
+      - "$PWD/.docker/backup:/tmp/backup"
+      - "$PWD/.docker/log:/tmp/log"
+    ports:
+      - 8080:80
+    depends_on:
+      - db
+    environment:
+      WORDPRESS_DB_HOST: "db:3306"
+    networks:
+      - pj10_network
+    env_file: .env
+
+  db:
+    image: mysql:5.7
+    container_name: pj10_mysql
+    volumes:
+      - "db-data:/var/lib/mysql"
+    networks:
+      - pj10_network
+    env_file: .env
+
+volumes:
+  db-data:
+
+networks:
+  pj10_network:
+  
+  
+File .env
+WORDPRESS_DB_NAME=wordpress
+WORDPRESS_DB_USER=admin
+WORDPRESS_DB_PASSWORD=pass
+
+MYSQL_RANDOM_ROOT_PASSWORD=yes
+MYSQL_DATABASE=wordpress
+MYSQL_USER=admin
+MYSQL_PASSWORD=pass
+
 
 
 Example1: Docker And Java App
@@ -316,4 +538,27 @@ Step4:
 docker build –f Dockerfile –t docker-spring-boot .
 docker run –p 8080:8080 docker-spring-boot
 Example2: Docker And Java App
+
+
+Example3: Jenkin CI/CD
+Step1: create server ec2:
+Step2:
+Login with sudo: sudo su  -
+get volum: docker volume ls
+create volum: docker volume create jenkin_volum
+Step 3: run image Jenkins:
+docker run -d --name jenkins -p 8080:8080 -p 5000:5000 -v jenkin_volum:/var/jenkins_home jenkins/jenkins:lts
+Step 4: docker logs [containerId]
+To get password: e3b48e0345264312bbfbc08d24755074
+Login and install plugin and create first admin user:
+Step5:create new item: General/ Source Code Management/git/
+Add git repo
+Build triggers: GitHub hook trigger for GITScm polling
+Step6: go to github and config webhooks: http://54.89.4.255:8080/github-webhook/
+Step 7: push code to git, anh verifile data: check in workspace, and check in EC2:
+Docker exec –it [containerid] /bin/bash
+Example3: Jenkinsfile CI/CD
+Step1: Newitem + pipeline
+Build Triggers + GitHub hook trigger for GITScm polling
+Pipeline+ pipeline script from SCM+git
 
